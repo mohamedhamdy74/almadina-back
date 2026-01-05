@@ -1,0 +1,23 @@
+node_modules/
+.env
+uploads/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# Data & Seeding Scripts
+seed.js
+seed-products.js
+generateEmbeddings.js
+
+# Testing & Utility Scripts
+testApiKey.js
+testCloudinary.js
+testLocalEmbeddings.js
+testRecommendation.js
+listModels.js
+updateAdminPassword.js
+
+# Database Info
+important.txt
