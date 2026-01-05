@@ -21,3 +21,7 @@ updateAdminPassword.js
 
 # Database Info
 important.txt
+
+# Documentation & Guides
+ATLAS_INDEX_GUIDE_AR.md
+VECTOR_SEARCH_SETUP.md
