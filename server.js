@@ -17,8 +17,27 @@ const app = express();
 connectDB();
 
 // Middleware
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173', // Adjust this to your frontend URL
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.includes(origin) ||
+      (origin.endsWith('.vercel.app'));
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true // Important for cookies
 }));
 app.use(express.json());
