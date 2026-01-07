@@ -82,19 +82,19 @@ productSchema.pre('save', async function (next) {
       // Create text representation of the product for embedding
       const specs = this.specifications || {};
       const textToEmbed = `
-        Product: ${this.name}
-        Brand: ${this.brand}
-        Model: ${this.model || 'N/A'}
-        Description: ${this.description}
-        Price: ${this.price} EGP
-        Category: ${this.category}
-        CPU: ${specs.cpu || specs.cpuModel || 'N/A'}
-        RAM: ${specs.ramMemory || 'N/A'}
-        Storage: ${specs.hardDiskSize || 'N/A'}
-        Screen Size: ${specs.screenSize || 'N/A'}
-        Graphics: ${specs.graphicsDescription || 'N/A'}
-        Operating System: ${specs.operatingSystem || 'N/A'}
-        Special Features: ${specs.specialFeatures?.join(', ') || 'N/A'}
+        المنتج: ${this.name} (Product)
+        الماركة: ${this.brand} (Brand)
+        الموديل: ${this.model || 'N/A'} (Model)
+        الوصف: ${this.description} (Description: ${this.description})
+        السعر: ${this.price} جنيه مصري (Price: ${this.price})
+        الفئة: ${this.category} (Category)
+        المعالج: ${specs.cpu || specs.cpuModel || 'N/A'} (CPU)
+        الرامات: ${specs.ramMemory || 'N/A'} (RAM)
+        الهارد: ${specs.hardDiskSize || 'N/A'} (Storage)
+        الشاشة: ${specs.screenSize || 'N/A'} (Screen)
+        كارت الشاشة: ${specs.graphicsDescription || 'N/A'} (Graphics)
+        النظام: ${specs.operatingSystem || 'N/A'} (OS)
+        مميزات: ${specs.specialFeatures?.join(', ') || 'N/A'} (Features)
       `.trim();
 
       // Generate embedding using local Transformers.js model

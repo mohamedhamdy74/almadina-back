@@ -45,7 +45,7 @@ exports.getRecommendation = async (req, res) => {
                     filter: { category: 'Laptops' } // Filter for Laptops only
                 },
             },
-            { $limit: 2 }, // Take top 2 after filtering
+            { $limit: 10 }, // Increase limit to give AI more options for specific filters (like HDD size)
             {
                 $project: {
                     name: 1,
@@ -65,6 +65,7 @@ exports.getRecommendation = async (req, res) => {
             const specs = product.specifications || {};
             return `
 المنتج ${index + 1}:
+- المعرف (ID): ${product._id}
 - الاسم: ${product.name}
 - العلامة التجارية: ${product.brand}
 - الوصف: ${product.description}
@@ -82,16 +83,16 @@ exports.getRecommendation = async (req, res) => {
         // Step 4: Generate AI response using retrieved context
         const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        const systemPrompt = `أنت خبير مبيعات محترف في متجر المدينة للإلكترونيات. مهمتك هي مساعدة العملاء في اختيار أفضل جهاز لابتوب يناسب احتياجاتهم.
+        const systemPrompt = `أنت خبير مبيعات محترف وودود في "متجر المدينة للإلكترونيات". مهمتك هي مساعدة العملاء في اختيار أفضل جهاز لابتوب يناسب احتياجاتهم.
+العملاء غالباً ما يتحدثون بالعامية المصرية، لذا كن مرناً في فهمهم ورد عليهم بنفس الأسلوب الودود ولكن باحترافية.
 
-قواعد مهمة:
-1. استخدم فقط المنتجات المسترجعة من قاعدة البيانات (المذكورة أدناه)
-2. اذكر المواصفات الأساسية والسعر بوضوح
-3. قدم توصية واضحة بناءً على احتياجات العميل
-4. كن ودوداً ومحترفاً
-5. إذا لم تجد منتج مناسب، اعتذر واطلب من العميل توضيح احتياجاته أكثر
+ قواعد مهمة:
+1. استخدم فقط المنتجات المسترجعة من قاعدة البيانات المذكورة أدناه.
+2. من الـ 10 أجهزة المتاحة، اختر أفضل "جهازين" فقط يناسبان طلب العميل وركز عليهما في ردك.
+3. اشرح "لماذا" كل جهاز مناسب له بشكل مقنع.
+4. في نهاية ردك تماماً، يجب أن تكتب معرفات (IDs) الجهازين اللذين اخترتهما بهذا التنسيق حصراً: [IDs: id1, id2]
 
-المنتجات المتاحة:
+المنتجات المتاحة حالياً في المعرض:
 ${productsContext}`;
 
         // Build conversation history for context
@@ -115,11 +116,25 @@ ${productsContext}`;
         });
 
         const result = await chat.sendMessage(message);
-        const aiResponse = result.response.text();
+        let aiResponse = result.response.text();
+
+        // Extract selected IDs and clean the response
+        let recommendedProducts = [];
+        const idMatch = aiResponse.match(/\[IDs:\s*([^\]]+)\]/);
+
+        if (idMatch) {
+            const selectedIds = idMatch[1].split(',').map(id => id.trim());
+            recommendedProducts = similarProducts.filter(p => selectedIds.includes(p._id.toString()));
+            // Remove the IDs tag from the visible response
+            aiResponse = aiResponse.replace(/\[IDs:\s*[^\]]+\]/, '').trim();
+        } else {
+            // Fallback: if AI forgets to include IDs, show top 2
+            recommendedProducts = similarProducts.slice(0, 2);
+        }
 
         res.json({
             message: aiResponse,
-            retrievedProducts: similarProducts.map(p => ({
+            retrievedProducts: recommendedProducts.map(p => ({
                 id: p._id,
                 name: p.name,
                 price: p.price,

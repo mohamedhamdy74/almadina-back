@@ -221,7 +221,9 @@ const updateProduct = async (req, res) => {
 
     console.log('Updates to apply:', updates);
 
-    const product = await Product.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
+    // Apply updates to the existing product object and save
+    Object.assign(existingProduct, updates);
+    const product = await existingProduct.save();
 
     console.log('Product updated successfully:', product);
     res.json(product);
