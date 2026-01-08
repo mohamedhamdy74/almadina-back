@@ -1,10 +1,10 @@
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-async function finalTest() {
-    console.log('🚀 Checking gemini-2.5-flash stability...');
+async function testGemini2() {
+    console.log('🚀 Checking gemini-2.0-flash stability...');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     try {
         console.log('--- Sending Request 1 ---');
@@ -21,10 +21,10 @@ async function finalTest() {
         const result2 = await chat.sendMessage("ما هو اسمي؟");
         console.log('✅ Response 2 Success:', result2.response.text().trim());
 
-        console.log('\n🌟 Result: gemini-2.5-flash is working successfully!');
+        console.log('\n🌟 Result: gemini-2.0-flash is working successfully!');
     } catch (error) {
         console.error('❌ Test Failed:', error.message);
     }
 }
 
-finalTest();
+testGemini2();

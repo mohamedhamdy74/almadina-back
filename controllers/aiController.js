@@ -54,10 +54,10 @@ exports.getRecommendation = async (req, res) => {
         }).join('\n\n');
 
         // Step 4: Chat Generation
-        console.log('💬 Starting Gemini Chat generation...');
+        console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash)...');
         const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        const systemPrompt = `أنت خبير مبيعات في متجر المدينة. ساعد العميل في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\nرد بالعامية المصرية وبإيجاز. في نهاية الرد اكتب الـ IDs كالتالي: [IDs: id1, id2]`;
+        const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل جهازين فقط.\n2. لا تذكر المعرف (ID) في الشرح.\n3. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;
 
         const chatHistory = conversationHistory.slice(-4).map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
@@ -67,7 +67,7 @@ exports.getRecommendation = async (req, res) => {
         const chat = chatModel.startChat({
             history: [
                 { role: 'user', parts: [{ text: systemPrompt }] },
-                { role: 'model', parts: [{ text: 'تحت أمرك، هساعدك تختار أحسن لابتوب.' }] },
+                { role: 'model', parts: [{ text: 'أهلاً بك، سأساعدك في اختيار أفضل جهاز يناسبك.' }] },
                 ...chatHistory,
             ],
         });
@@ -83,10 +83,8 @@ exports.getRecommendation = async (req, res) => {
         if (idMatch) {
             const selectedIds = idMatch[1].split(',').map(id => id.trim());
             recommendedProducts = similarProducts.filter(p => selectedIds.includes(p._id.toString()));
-            // Remove the IDs tag from the visible response
             aiResponse = aiResponse.replace(/\[IDs:\s*[^\]]+\]/, '').trim();
         } else {
-            // Fallback: if AI forgets to include IDs, show top 2
             recommendedProducts = similarProducts.slice(0, 2);
         }
 
@@ -103,6 +101,15 @@ exports.getRecommendation = async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error in getRecommendation:', error);
+
+        // Handle Gemini Overload/Quota specifically
+        if (error.message.includes('503') || error.message.includes('overloaded')) {
+            return res.status(200).json({
+                message: "بعتذر منك، السيرفر عليه ضغط حالياً. ممكن تجرب كمان دقيقة؟",
+                retrievedProducts: []
+            });
+        }
+
         res.status(500).json({
             message: 'حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.',
             error: error.message
