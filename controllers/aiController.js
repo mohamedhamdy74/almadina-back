@@ -56,6 +56,7 @@ exports.getRecommendation = async (req, res) => {
         const productsContext = similarProducts.map((product, index) => {
             const specs = product.specifications || {};
             return `المنتج ${index + 1}:
+[الرقم التعريفي]: ${product._id}
 [الاسم]: ${product.name}
 [الماركة]: ${product.brand}
 [السعر]: ${product.price} LE
@@ -68,7 +69,7 @@ exports.getRecommendation = async (req, res) => {
 [الوصف]: ${product.description}`.trim();
         }).join('\n\n---\n\n');
 
-        const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر المعرف (ID) في الشرح.\n4. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;
+        const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر [الرقم التعريفي] نهائياً في كلامك مع العميل.\n4. في نهاية الرد تماماً، استخرج [الرقم التعريفي] للمنتجات التي اخترتها واكتبها بهذا التنسيق: [IDs: id1, id2]`;
 
         // Step 4: Chat Generation (No History to save quota/avoid errors)
         console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash) - History Disabled...');
@@ -89,8 +90,16 @@ exports.getRecommendation = async (req, res) => {
         if (idMatch) {
             const selectedIds = idMatch[1].split(',').map(id => id.trim());
             recommendedProducts = similarProducts.filter(p => selectedIds.includes(p._id.toString()));
+
+            // Fallback if extraction failed or matching failed
+            if (recommendedProducts.length === 0) {
+                console.log('⚠️ AI provided IDs but matching failed. Falling back to top search results.');
+                recommendedProducts = similarProducts.slice(0, 2);
+            }
+
             aiResponse = aiResponse.replace(/\[IDs:\s*[^\]]+\]/, '').trim();
         } else {
+            console.log('⚠️ No [IDs: ...] tag found in AI response. Using top 2 similar products.');
             recommendedProducts = similarProducts.slice(0, 2);
         }
 
