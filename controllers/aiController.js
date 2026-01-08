@@ -4,17 +4,6 @@ const Product = require('../models/Product');
 // Initialize Google AI with API key from environment
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Initialize local embedding pipeline
-let embedder = null;
-
-async function getEmbedder() {
-    if (!embedder) {
-        const { pipeline } = await import('@xenova/transformers');
-        embedder = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small');
-    }
-    return embedder;
-}
-
 /**
  * Device Recommendation Endpoint (RAG-based)
  * Uses vector search to find similar products and generates recommendations
@@ -27,10 +16,10 @@ exports.getRecommendation = async (req, res) => {
             return res.status(400).json({ message: 'Message is required' });
         }
 
-        // Step 1: Generate embedding for user query using local model
-        const model = await getEmbedder();
-        const output = await model(message, { pooling: 'mean', normalize: true });
-        const queryEmbedding = Array.from(output.data);
+        // Step 1: Generate embedding for user query using Gemini API
+        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        const embeddingResult = await embeddingModel.embedContent(message);
+        const queryEmbedding = embeddingResult.embedding.values;
 
         // Step 2: Perform vector search in MongoDB Atlas
         // Note: This requires a vector search index on the 'embedding_vector' field
@@ -115,8 +104,8 @@ ${productsContext}`;
             ],
         });
 
-        const result = await chat.sendMessage(message);
-        let aiResponse = result.response.text();
+        const chatResult = await chat.sendMessage(message);
+        let aiResponse = chatResult.response.text();
 
         // Extract selected IDs and clean the response
         let recommendedProducts = [];
