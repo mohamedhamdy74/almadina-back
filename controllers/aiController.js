@@ -23,8 +23,13 @@ exports.getRecommendation = async (req, res) => {
         const queryEmbedding = embeddingResult.embedding.values;
         console.log('✅ Embedding generated successfully');
 
-        // Step 2: Vector Search
-        console.log('🔍 Starting Vector Search in MongoDB...');
+        // Determine category based on keywords
+        let categoryFilter = 'Laptops'; // Default
+        const lowerMessage = message.toLowerCase();
+        if (/اكسسوار|شنطة|ماوس|كيبورد|سماعة|شاحن|وصلة|accessory|mouse|keyboard|headset|charger/i.test(lowerMessage)) {
+            categoryFilter = 'Accessories';
+        }
+
         const similarProducts = await Product.aggregate([
             {
                 $vectorSearch: {
@@ -32,11 +37,11 @@ exports.getRecommendation = async (req, res) => {
                     path: 'embedding_vector',
                     queryVector: queryEmbedding,
                     numCandidates: 100,
-                    limit: 10,
-                    filter: { category: 'Laptops' }
+                    limit: 15, // Increased limit for better selection
+                    filter: { category: categoryFilter }
                 },
             },
-            { $limit: 10 },
+            { $limit: 15 },
             {
                 $project: {
                     name: 1, brand: 1, description: 1, price: 1,
@@ -47,13 +52,24 @@ exports.getRecommendation = async (req, res) => {
         ]);
         console.log(`✅ Vector search found ${similarProducts.length} products`);
 
-        // Step 3: Prompt Formatting... (keep existing logic)
+        // Step 3: Prompt Formatting
         const productsContext = similarProducts.map((product, index) => {
             const specs = product.specifications || {};
-            return `المنتج ${index + 1}: [ID: ${product._id}] ${product.name} - ${product.price} LE`.trim();
-        }).join('\n\n');
+            return `المنتج ${index + 1}:
+[ID: ${product._id}]
+الاسم: ${product.name}
+الماركة: ${product.brand}
+السعر: ${product.price} LE
+المواصفات:
+- المعالج: ${specs.cpu || specs.cpuModel || 'N/A'}
+- الرامات: ${specs.ramMemory || 'N/A'}
+- الهارد: ${specs.hardDiskSize || 'N/A'}
+- كارت الشاشة: ${specs.graphicsDescription || 'N/A'}
+- الشاشة: ${specs.screenSize || 'N/A'}
+الوصف: ${product.description}`.trim();
+        }).join('\n\n---\n\n');
 
-        const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل جهازين فقط.\n2. لا تذكر المعرف (ID) في الشرح.\n3. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;
+        const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر المعرف (ID) في الشرح.\n4. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;
 
         // Step 4: Chat Generation (No History to save quota/avoid errors)
         console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash) - History Disabled...');
@@ -82,10 +98,13 @@ exports.getRecommendation = async (req, res) => {
         res.json({
             message: aiResponse,
             retrievedProducts: recommendedProducts.map(p => ({
-                id: p._id,
+                _id: p._id,
                 name: p.name,
                 price: p.price,
                 thumbnail: p.thumbnail,
+                category: p.category,
+                description: p.description,
+                brand: p.brand,
                 score: p.score,
             })),
         });
