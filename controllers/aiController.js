@@ -55,7 +55,7 @@ exports.getRecommendation = async (req, res) => {
 
         // Step 4: Chat Generation
         console.log('💬 Starting Gemini Chat generation...');
-        const chatModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' });
+        const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const systemPrompt = `أنت خبير مبيعات في متجر المدينة. ساعد العميل في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\nرد بالعامية المصرية وبإيجاز. في نهاية الرد اكتب الـ IDs كالتالي: [IDs: id1, id2]`;
 
