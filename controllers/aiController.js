@@ -1,5 +1,4 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { pipeline } = require('@xenova/transformers');
 const Product = require('../models/Product');
 
 // Initialize Google AI with API key from environment
@@ -10,6 +9,7 @@ let embedder = null;
 
 async function getEmbedder() {
     if (!embedder) {
+        const { pipeline } = await import('@xenova/transformers');
         embedder = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small');
     }
     return embedder;

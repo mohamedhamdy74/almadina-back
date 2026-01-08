@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
-const { pipeline } = require('@xenova/transformers');
-
 // Initialize embedding pipeline (will download model on first use)
 let embedder = null;
 
 async function getEmbedder() {
   if (!embedder) {
+    // Dynamic import for ES Module compatibility
+    const { pipeline } = await import('@xenova/transformers');
     // Using multilingual-e5-small model (supports Arabic and English)
     // Model size: ~120MB, will be cached after first download
     embedder = await pipeline('feature-extraction', 'Xenova/multilingual-e5-small');
