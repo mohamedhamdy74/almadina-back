@@ -70,7 +70,7 @@ exports.getRecommendation = async (req, res) => {
         }).join('\n\n---\n\n');
 
         // Step 4: Generate AI response using retrieved context
-        const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
         const systemPrompt = `أنت خبير مبيعات محترف وودود في "متجر المدينة للإلكترونيات". مهمتك هي مساعدة العملاء في اختيار أفضل جهاز لابتوب يناسب احتياجاتهم.
 العملاء غالباً ما يتحدثون بالعامية المصرية، لذا كن مرناً في فهمهم ورد عليهم بنفس الأسلوب الودود ولكن باحترافية.
@@ -84,8 +84,8 @@ exports.getRecommendation = async (req, res) => {
 المنتجات المتاحة حالياً في المعرض:
 ${productsContext}`;
 
-        // Build conversation history for context
-        const chatHistory = conversationHistory.map(msg => ({
+        // Build conversation history for context (Keep only last 6 messages to save context space/timeout)
+        const chatHistory = conversationHistory.slice(-6).map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.content }],
         }));
