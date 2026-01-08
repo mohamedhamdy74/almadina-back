@@ -56,17 +56,16 @@ exports.getRecommendation = async (req, res) => {
         const productsContext = similarProducts.map((product, index) => {
             const specs = product.specifications || {};
             return `المنتج ${index + 1}:
-[ID: ${product._id}]
-الاسم: ${product.name}
-الماركة: ${product.brand}
-السعر: ${product.price} LE
-المواصفات:
+[الاسم]: ${product.name}
+[الماركة]: ${product.brand}
+[السعر]: ${product.price} LE
+[المواصفات التقنية]:
 - المعالج: ${specs.cpu || specs.cpuModel || 'N/A'}
 - الرامات: ${specs.ramMemory || 'N/A'}
 - الهارد: ${specs.hardDiskSize || 'N/A'}
 - كارت الشاشة: ${specs.graphicsDescription || 'N/A'}
 - الشاشة: ${specs.screenSize || 'N/A'}
-الوصف: ${product.description}`.trim();
+[الوصف]: ${product.description}`.trim();
         }).join('\n\n---\n\n');
 
         const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر المعرف (ID) في الشرح.\n4. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;

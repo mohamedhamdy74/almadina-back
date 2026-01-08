@@ -73,19 +73,19 @@ productSchema.pre('save', async function (next) {
       // Create text representation of the product for embedding
       const specs = this.specifications || {};
       const textToEmbed = `
-        المنتج: ${this.name} (Product)
-        الماركة: ${this.brand} (Brand)
-        الموديل: ${this.model || 'N/A'} (Model)
-        الوصف: ${this.description} (Description: ${this.description})
-        السعر: ${this.price} جنيه مصري (Price: ${this.price})
-        الفئة: ${this.category} (Category)
-        المعالج: ${specs.cpu || specs.cpuModel || 'N/A'} (CPU)
-        الرامات: ${specs.ramMemory || 'N/A'} (RAM)
-        الهارد: ${specs.hardDiskSize || 'N/A'} (Storage)
-        الشاشة: ${specs.screenSize || 'N/A'} (Screen)
-        كارت الشاشة: ${specs.graphicsDescription || 'N/A'} (Graphics)
-        النظام: ${specs.operatingSystem || 'N/A'} (OS)
-        مميزات: ${specs.specialFeatures?.join(', ') || 'N/A'} (Features)
+📌 الاسم: ${this.name}
+🏷️ الماركة: ${this.brand}
+📑 الموديل: ${this.model || 'N/A'}
+💰 السعر: ${this.price} EGP
+📁 الفئة: ${this.category}
+💻 المعالج: ${specs.cpu || specs.cpuModel || 'N/A'}
+🧠 الرامات: ${specs.ramMemory || 'N/A'}
+💾 الهارد: ${specs.hardDiskSize || 'N/A'}
+🖥️ الشاشة: ${specs.screenSize || 'N/A'}
+🎮 كارت الشاشة: ${specs.graphicsDescription || 'N/A'}
+⚙️ النظام: ${specs.operatingSystem || 'N/A'}
+✨ المميزات: ${specs.specialFeatures?.length > 0 ? specs.specialFeatures.join(', ') : 'N/A'}
+📝 الوصف: ${this.description}
       `.trim();
 
       // Generate embedding using Google Gemini API (Faster & Cloud-based)
