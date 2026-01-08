@@ -53,26 +53,17 @@ exports.getRecommendation = async (req, res) => {
             return `المنتج ${index + 1}: [ID: ${product._id}] ${product.name} - ${product.price} LE`.trim();
         }).join('\n\n');
 
-        // Step 4: Chat Generation
-        console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash)...');
-        const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
         const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل جهازين فقط.\n2. لا تذكر المعرف (ID) في الشرح.\n3. في نهاية الرد تماماً، اكتب المعرفات بهذا التنسيق: [IDs: id1, id2]`;
 
-        const chatHistory = conversationHistory.slice(-4).map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }],
-        }));
-
-        const chat = chatModel.startChat({
-            history: [
-                { role: 'user', parts: [{ text: systemPrompt }] },
-                { role: 'model', parts: [{ text: 'أهلاً بك، سأساعدك في اختيار أفضل جهاز يناسبك.' }] },
-                ...chatHistory,
-            ],
+        // Step 4: Chat Generation (No History to save quota/avoid errors)
+        console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash) - History Disabled...');
+        const chatModel = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: systemPrompt // Newer SDKs support this directly
         });
 
-        const chatResult = await chat.sendMessage(message);
+        // Use generateContent instead of startChat for a stateless response
+        const chatResult = await chatModel.generateContent(message);
         console.log('✅ Chat response received from Gemini');
         let aiResponse = chatResult.response.text();
 
@@ -129,8 +120,6 @@ exports.getTroubleshooting = async (req, res) => {
             return res.status(400).json({ message: 'Message is required' });
         }
 
-        const chatModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
         const systemPrompt = `أنت مهندس دعم فني متخصص في تشخيص وإصلاح أعطال الحواسيب المحمولة.
 
 مهمتك:
@@ -142,27 +131,12 @@ exports.getTroubleshooting = async (req, res) => {
 
 كن محترفاً، صبوراً، ومفيداً في جميع ردودك.`;
 
-        // Build conversation history
-        const chatHistory = conversationHistory.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }],
-        }));
-
-        const chat = chatModel.startChat({
-            history: [
-                {
-                    role: 'user',
-                    parts: [{ text: systemPrompt }],
-                },
-                {
-                    role: 'model',
-                    parts: [{ text: 'مرحباً! أنا هنا لمساعدتك في حل مشاكل جهازك. من فضلك، صف لي المشكلة التي تواجهها.' }],
-                },
-                ...chatHistory,
-            ],
+        const chatModel = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: systemPrompt
         });
 
-        const result = await chat.sendMessage(message);
+        const result = await chatModel.generateContent(message);
         const aiResponse = result.response.text();
 
         res.json({
