@@ -16,95 +16,64 @@ exports.getRecommendation = async (req, res) => {
             return res.status(400).json({ message: 'Message is required' });
         }
 
-        // Step 1: Generate embedding for user query using Gemini API
+        // Step 1: Generate embedding for user query
+        console.log('🤖 Starting Embedding step for message:', message);
         const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         const embeddingResult = await embeddingModel.embedContent(message);
         const queryEmbedding = embeddingResult.embedding.values;
+        console.log('✅ Embedding generated successfully');
 
-        // Step 2: Perform vector search in MongoDB Atlas
-        // Note: This requires a vector search index on the 'embedding_vector' field
+        // Step 2: Vector Search
+        console.log('🔍 Starting Vector Search in MongoDB...');
         const similarProducts = await Product.aggregate([
             {
                 $vectorSearch: {
-                    index: 'vector_index', // Name of your vector search index in Atlas
+                    index: 'vector_index',
                     path: 'embedding_vector',
                     queryVector: queryEmbedding,
                     numCandidates: 100,
-                    limit: 10, // Increase limit to allow filtering
-                    filter: { category: 'Laptops' } // Filter for Laptops only
+                    limit: 10,
+                    filter: { category: 'Laptops' }
                 },
             },
-            { $limit: 10 }, // Increase limit to give AI more options for specific filters (like HDD size)
+            { $limit: 10 },
             {
                 $project: {
-                    name: 1,
-                    brand: 1,
-                    description: 1,
-                    price: 1,
-                    category: 1,
-                    specifications: 1,
-                    thumbnail: 1,
+                    name: 1, brand: 1, description: 1, price: 1,
+                    category: 1, specifications: 1, thumbnail: 1,
                     score: { $meta: 'vectorSearchScore' },
                 },
             },
         ]);
+        console.log(`✅ Vector search found ${similarProducts.length} products`);
 
-        // Step 3: Format retrieved products as context
+        // Step 3: Prompt Formatting... (keep existing logic)
         const productsContext = similarProducts.map((product, index) => {
             const specs = product.specifications || {};
-            return `
-المنتج ${index + 1}:
-- المعرف (ID): ${product._id}
-- الاسم: ${product.name}
-- العلامة التجارية: ${product.brand}
-- الوصف: ${product.description}
-- السعر: ${product.price} جنيه مصري
-- المعالج: ${specs.cpu || specs.cpuModel || 'غير محدد'}
-- الذاكرة العشوائية: ${specs.ramMemory || 'غير محدد'}
-- التخزين: ${specs.hardDiskSize || 'غير محدد'}
-- حجم الشاشة: ${specs.screenSize || 'غير محدد'}
-- كرت الشاشة: ${specs.graphicsDescription || 'غير محدد'}
-- نظام التشغيل: ${specs.operatingSystem || 'غير محدد'}
-- المميزات الخاصة: ${specs.specialFeatures?.join(', ') || 'غير محدد'}
-      `.trim();
-        }).join('\n\n---\n\n');
+            return `المنتج ${index + 1}: [ID: ${product._id}] ${product.name} - ${product.price} LE`.trim();
+        }).join('\n\n');
 
-        // Step 4: Generate AI response using retrieved context
-        const chatModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Step 4: Chat Generation
+        console.log('💬 Starting Gemini Chat generation...');
+        const chatModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' });
 
-        const systemPrompt = `أنت خبير مبيعات محترف وودود في "متجر المدينة للإلكترونيات". مهمتك هي مساعدة العملاء في اختيار أفضل جهاز لابتوب يناسب احتياجاتهم.
-العملاء غالباً ما يتحدثون بالعامية المصرية، لذا كن مرناً في فهمهم ورد عليهم بنفس الأسلوب الودود ولكن باحترافية.
+        const systemPrompt = `أنت خبير مبيعات في متجر المدينة. ساعد العميل في اختيار لابتوب من القائمة التالية فقط:\n${productsContext}\nرد بالعامية المصرية وبإيجاز. في نهاية الرد اكتب الـ IDs كالتالي: [IDs: id1, id2]`;
 
- قواعد مهمة:
-1. استخدم فقط المنتجات المسترجعة من قاعدة البيانات المذكورة أدناه.
-2. من الـ 10 أجهزة المتاحة، اختر أفضل "جهازين" فقط يناسبان طلب العميل وركز عليهما في ردك.
-3. اشرح "لماذا" كل جهاز مناسب له بشكل مقنع، ولكن **لا تذكر المعرف (ID) نهائياً في كلامك مع العميل**.
-4. في نهاية ردك تماماً، يجب أن تكتب معرفات (IDs) الجهازين اللذين اخترتهما بهذا التنسيق حصراً: [IDs: id1, id2] ليتمكن النظام من عرض الكروت.
-
-المنتجات المتاحة حالياً في المعرض:
-${productsContext}`;
-
-        // Build conversation history for context (Keep only last 6 messages to save context space/timeout)
-        const chatHistory = conversationHistory.slice(-6).map(msg => ({
+        const chatHistory = conversationHistory.slice(-4).map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.content }],
         }));
 
         const chat = chatModel.startChat({
             history: [
-                {
-                    role: 'user',
-                    parts: [{ text: systemPrompt }],
-                },
-                {
-                    role: 'model',
-                    parts: [{ text: 'فهمت. سأساعدك في اختيار أفضل جهاز لابتوب من المنتجات المتاحة بناءً على احتياجاتك.' }],
-                },
+                { role: 'user', parts: [{ text: systemPrompt }] },
+                { role: 'model', parts: [{ text: 'تحت أمرك، هساعدك تختار أحسن لابتوب.' }] },
                 ...chatHistory,
             ],
         });
 
         const chatResult = await chat.sendMessage(message);
+        console.log('✅ Chat response received from Gemini');
         let aiResponse = chatResult.response.text();
 
         // Extract selected IDs and clean the response
