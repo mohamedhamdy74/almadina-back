@@ -72,9 +72,9 @@ exports.getRecommendation = async (req, res) => {
         const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر [الرقم التعريفي] نهائياً في كلامك مع العميل.\n4. في نهاية الرد تماماً، استخرج [الرقم التعريفي] للمنتجات التي اخترتها واكتبها بهذا التنسيق: [IDs: id1, id2]`;
 
         // Step 4: Chat Generation (No History to save quota/avoid errors)
-        console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash) - History Disabled...');
+        console.log('💬 Starting Gemini Chat generation (gemini-2.5-flash-lite) - History Disabled...');
         const chatModel = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-flash-lite',
             systemInstruction: systemPrompt // Newer SDKs support this directly
         });
 
