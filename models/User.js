@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'user', // 'admin' or 'user'
   },
+  aiUsage: {
+    count: { type: Number, default: 0 },
+    lastUsed: { type: Date, default: null }
+  },
 }, {
   timestamps: true,
 });

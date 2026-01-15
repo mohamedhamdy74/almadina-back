@@ -11,6 +11,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 exports.getRecommendation = async (req, res) => {
     try {
         const { message, conversationHistory = [] } = req.body;
+        const user = req.user;
+
+        // Check Daily Limit
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastUsed = user.aiUsage?.lastUsed ? new Date(user.aiUsage.lastUsed).setHours(0, 0, 0, 0) : null;
+
+        if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
+            return res.status(429).json({
+                message: "خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله. 😉",
+                limitExceeded: true
+            });
+        }
 
         if (!message) {
             return res.status(400).json({ message: 'Message is required' });
@@ -117,6 +129,13 @@ exports.getRecommendation = async (req, res) => {
             })),
         });
 
+        // Update AI Usage Count
+        user.aiUsage = {
+            count: lastUsed === today ? (user.aiUsage?.count || 0) + 1 : 1,
+            lastUsed: new Date()
+        };
+        await user.save();
+
     } catch (error) {
         console.error('❌ Error in getRecommendation:', error);
 
@@ -142,6 +161,18 @@ exports.getRecommendation = async (req, res) => {
 exports.getTroubleshooting = async (req, res) => {
     try {
         const { message, conversationHistory = [] } = req.body;
+        const user = req.user;
+
+        // Check Daily Limit
+        const today = new Date().setHours(0, 0, 0, 0);
+        const lastUsed = user.aiUsage?.lastUsed ? new Date(user.aiUsage.lastUsed).setHours(0, 0, 0, 0) : null;
+
+        if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
+            return res.status(429).json({
+                message: "خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله. 😉",
+                limitExceeded: true
+            });
+        }
 
         if (!message) {
             return res.status(400).json({ message: 'Message is required' });
@@ -169,6 +200,13 @@ exports.getTroubleshooting = async (req, res) => {
         res.json({
             message: aiResponse,
         });
+
+        // Update AI Usage Count
+        user.aiUsage = {
+            count: lastUsed === today ? (user.aiUsage?.count || 0) + 1 : 1,
+            lastUsed: new Date()
+        };
+        await user.save();
 
     } catch (error) {
         console.error('❌ Error in getTroubleshooting:', error);
