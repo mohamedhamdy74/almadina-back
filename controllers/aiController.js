@@ -19,7 +19,7 @@ exports.getRecommendation = async (req, res) => {
 
         if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
             return res.status(429).json({
-                message: "خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله. 😉",
+                message: " خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله او تواصل معانا علي الواتساب. 😉",
                 limitExceeded: true
             });
         }
@@ -169,7 +169,7 @@ exports.getTroubleshooting = async (req, res) => {
 
         if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
             return res.status(429).json({
-                message: "خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله. 😉",
+                message: " خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله او تواصل معانا علي الواتساب. 😉",
                 limitExceeded: true
             });
         }
