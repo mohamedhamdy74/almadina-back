@@ -1,47 +1,33 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Product = require('../models/Product');
 
-// Initialize Google AI with API key from environment
+// Initialize Google AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * Device Recommendation Endpoint (RAG-based)
- * Uses vector search to find similar products and generates recommendations
- */
-exports.getRecommendation = async (req, res) => {
+// AI-based Product Recommendation (RAG)
+const getRecommendation = async (req, res) => {
     try {
-        const { message, conversationHistory = [] } = req.body;
-        const user = req.user;
-
-        // Check Daily Limit
-        const today = new Date().setHours(0, 0, 0, 0);
-        const lastUsed = user.aiUsage?.lastUsed ? new Date(user.aiUsage.lastUsed).setHours(0, 0, 0, 0) : null;
-
-        if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
-            return res.status(429).json({
-                message: " خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله او تواصل معانا علي الواتساب. 😉",
-                limitExceeded: true
-            });
-        }
+        const { message } = req.body;
 
         if (!message) {
-            return res.status(400).json({ message: 'Message is required' });
+            return res.status(400).json({ message: 'الرجاء إدخال رسالة' });
         }
 
         // Step 1: Generate embedding for user query
-        console.log('🤖 Starting Embedding step for message:', message);
-        const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+        console.log('🤖 Generating embedding using gemini-embedding-001...');
+        const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
         const embeddingResult = await embeddingModel.embedContent(message);
         const queryEmbedding = embeddingResult.embedding.values;
         console.log('✅ Embedding generated successfully');
 
         // Determine category based on keywords
-        let categoryFilter = 'Laptops'; // Default
+        let categoryFilter = 'Laptops'; 
         const lowerMessage = message.toLowerCase();
         if (/اكسسوار|شنطة|ماوس|كيبورد|سماعة|شاحن|وصلة|accessory|mouse|keyboard|headset|charger/i.test(lowerMessage)) {
             categoryFilter = 'Accessories';
         }
 
+        // Step 2: Vector Search in MongoDB
         const similarProducts = await Product.aggregate([
             {
                 $vectorSearch: {
@@ -49,7 +35,7 @@ exports.getRecommendation = async (req, res) => {
                     path: 'embedding_vector',
                     queryVector: queryEmbedding,
                     numCandidates: 100,
-                    limit: 15, // Increased limit for better selection
+                    limit: 15,
                     filter: { category: categoryFilter }
                 },
             },
@@ -83,136 +69,65 @@ exports.getRecommendation = async (req, res) => {
 
         const systemPrompt = `أنت خبير مبيعات في متجر المدينة للإلكترونيات. ساعد العميل بالعامية المصرية في اختيار المنتجات المناسبة من القائمة التالية فقط:\n${productsContext}\n\nقواعد:\n1. اختر أفضل منتجين فقط يناسبان طلب العميل.\n2. إذا لم تجد منتجات تناسب طلب العميل تماماً، وضح ذلك واقترح أقرب البدائل من القائمة.\n3. لا تذكر [الرقم التعريفي] نهائياً في كلامك مع العميل.\n4. في نهاية الرد تماماً، استخرج [الرقم التعريفي] للمنتجات التي اخترتها واكتبها بهذا التنسيق: [IDs: id1, id2]`;
 
-        // Step 4: Chat Generation (No History to save quota/avoid errors)
-        console.log('💬 Starting Gemini Chat generation (gemini-3-flash) - History Disabled...');
+        // Step 4: Chat Generation
+        console.log('💬 Invoking gemini-2.5-flash-lite...');
         const chatModel = genAI.getGenerativeModel({
-            model: 'gemini-3-flash',
+            model: 'gemini-2.5-flash-lite', 
             systemInstruction: systemPrompt
         });
 
-        // Use generateContent instead of startChat for a stateless response
         const chatResult = await chatModel.generateContent(message);
-        console.log('✅ Chat response received from Gemini');
+        console.log('✅ Chat response received');
         let aiResponse = chatResult.response.text();
 
-        // Extract selected IDs and clean the response
-        let recommendedProducts = [];
+        // Step 5: Extract Recommended IDs
         const idMatch = aiResponse.match(/\[IDs:\s*([^\]]+)\]/);
-
+        let recommendedIds = [];
         if (idMatch) {
-            const selectedIds = idMatch[1].split(',').map(id => id.trim());
-            recommendedProducts = similarProducts.filter(p => selectedIds.includes(p._id.toString()));
-
-            // Fallback if extraction failed or matching failed
-            if (recommendedProducts.length === 0) {
-                console.log('⚠️ AI provided IDs but matching failed. Falling back to top search results.');
-                recommendedProducts = similarProducts.slice(0, 2);
-            }
-
+            recommendedIds = idMatch[1].split(',').map(id => id.trim());
             aiResponse = aiResponse.replace(/\[IDs:\s*[^\]]+\]/, '').trim();
-        } else {
-            console.log('⚠️ No [IDs: ...] tag found in AI response. Using top 2 similar products.');
-            recommendedProducts = similarProducts.slice(0, 2);
         }
 
         res.json({
-            message: aiResponse,
-            retrievedProducts: recommendedProducts.map(p => ({
-                _id: p._id,
-                name: p.name,
-                price: p.price,
-                thumbnail: p.thumbnail,
-                category: p.category,
-                description: p.description,
-                brand: p.brand,
-                score: p.score,
-            })),
+            reply: aiResponse,
+            recommendedIds: recommendedIds
         });
-
-        // Update AI Usage Count
-        user.aiUsage = {
-            count: lastUsed === today ? (user.aiUsage?.count || 0) + 1 : 1,
-            lastUsed: new Date()
-        };
-        await user.save();
 
     } catch (error) {
-        console.error('❌ Error in getRecommendation:', error);
-
-        // Handle Gemini Overload/Quota specifically
-        if (error.message.includes('503') || error.message.includes('overloaded')) {
-            return res.status(200).json({
-                message: "بعتذر منك، السيرفر عليه ضغط حالياً. ممكن تجرب كمان دقيقة؟",
-                retrievedProducts: []
-            });
-        }
-
-        res.status(500).json({
-            message: 'حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.',
-            error: error.message
-        });
+        console.error('❌ AI Assistant Error:', error);
+        res.status(500).json({ message: 'فشل مساعد الـ AI في الرد، يرجى المحاولة لاحقاً' });
     }
 };
 
-/**
- * Troubleshooting Endpoint
- * Provides technical support for laptop issues
- */
-exports.getTroubleshooting = async (req, res) => {
+// Technical Support / Troubleshooting (Stateless)
+const getTroubleshooting = async (req, res) => {
     try {
-        const { message, conversationHistory = [] } = req.body;
-        const user = req.user;
-
-        // Check Daily Limit
-        const today = new Date().setHours(0, 0, 0, 0);
-        const lastUsed = user.aiUsage?.lastUsed ? new Date(user.aiUsage.lastUsed).setHours(0, 0, 0, 0) : null;
-
-        if (user.role !== 'admin' && lastUsed === today && user.aiUsage?.count >= 1) {
-            return res.status(429).json({
-                message: " خلصت سؤالك النهاردة يا بطل! تقدر تسأل تاني بكرة بإذن الله او تواصل معانا علي الواتساب. 😉",
-                limitExceeded: true
-            });
-        }
+        const { message } = req.body;
 
         if (!message) {
-            return res.status(400).json({ message: 'Message is required' });
+            return res.status(400).json({ message: 'الرجاء وصف المشكلة التقنية' });
         }
 
-        const systemPrompt = `أنت مهندس دعم فني متخصص في تشخيص وإصلاح أعطال الحواسيب المحمولة.
+        console.log('🔧 Invoking Support AI (gemini-2.5-flash-lite)...');
+        const systemInstruction = "أنت خبير دعم فني متخصص في الإلكترونيات واللابتوبات. حلل مشكلة العميل بالعامية المصرية وقدم خطوات عملية ومرتبة لإصلاحها. إذا كانت المشكلة تتطلب فني متخصص، انصح العميل بزيارة متجر المدينة للإلكترونيات.";
 
-مهمتك:
-1. طرح أسئلة تشخيصية متسلسلة لتحديد المشكلة بدقة
-2. تقديم حلول عملية خطوة بخطوة
-3. شرح الحلول بطريقة واضحة وسهلة الفهم
-4. البدء بالحلول البسيطة قبل المعقدة
-5. تحذير المستخدم إذا كان الحل يتطلب خبرة فنية متقدمة
-
-كن محترفاً، صبوراً، ومفيداً في جميع ردودك.`;
-
-        const chatModel = genAI.getGenerativeModel({
-            model: 'gemini-3-flash',
-            systemInstruction: systemPrompt
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash-lite",
+            systemInstruction: systemInstruction
         });
 
-        const result = await chatModel.generateContent(message);
-        const aiResponse = result.response.text();
+        const result = await model.generateContent(message);
+        const advice = result.response.text();
 
-        res.json({
-            message: aiResponse,
-        });
-
-        // Update AI Usage Count
-        user.aiUsage = {
-            count: lastUsed === today ? (user.aiUsage?.count || 0) + 1 : 1,
-            lastUsed: new Date()
-        };
-        await user.save();
+        res.json({ reply: advice });
 
     } catch (error) {
-        console.error('❌ Error in getTroubleshooting:', error);
-        res.status(500).json({
-            message: 'حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.',
-            error: error.message
-        });
+        console.error('❌ AI Support Error:', error);
+        res.status(500).json({ message: 'فشل مساعد الدعم الفني في الرد، يرجى المحاولة لاحقاً' });
     }
+};
+
+module.exports = {
+    getRecommendation,
+    getTroubleshooting
 };

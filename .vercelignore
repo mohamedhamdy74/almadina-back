@@ -1,2 +1,15 @@
-node_modules
-.env
+node_modules/
+tests/
+*.log
+seed*.js
+test*.js
+check*.js
+list*.js
+refresh_embeddings.js
+generate_new_embeddings.js
+wake_cluster.js
+create-admin.js
+SyncLaptops.js
+*.md
+.gitignore
+.git/

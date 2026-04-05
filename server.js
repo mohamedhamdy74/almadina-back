@@ -47,7 +47,22 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health check
+// Health check & DB Wake-up endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    await connectDB();
+    // Simple database operation to ensure activity
+    const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+    res.json({ 
+      status: 'OK', 
+      db: dbStatus,
+      message: 'Almadina Store API is awake and healthy' 
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'Error', message: 'Database connection failed' });
+  }
+});
+
 app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'Almadina Store API is running' });
 });
