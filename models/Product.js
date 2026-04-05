@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Google AI (New SDK)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const productSchema = new mongoose.Schema({
   name: {
@@ -88,12 +88,14 @@ productSchema.pre('save', async function (next) {
 📝 الوصف: ${this.description}
       `.trim();
 
-      // Generate embedding using Google Gemini API (Faster & Cloud-based)
-      const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-      const result = await model.embedContent(textToEmbed);
+      // Generate embedding using Google GenAI SDK
+      const result = await ai.models.embedContent({
+        model: 'gemini-embedding-001',
+        contents: textToEmbed,
+      });
 
-      // Convert tensor to array
-      this.embedding_vector = result.embedding.values;
+      // Extract embedding values
+      this.embedding_vector = result.embeddings[0].values;
 
       console.log(`✅ Generated Gemini embedding for product: ${this.name} (${this.embedding_vector.length} dimensions)`);
     }

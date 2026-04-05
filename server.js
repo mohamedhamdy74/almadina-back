@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
+const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
