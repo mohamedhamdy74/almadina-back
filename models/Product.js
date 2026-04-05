@@ -116,4 +116,4 @@ productSchema.pre('save', async function (next) {
 //   }]
 // }
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = mongoose.models.Product || mongoose.model('Product', productSchema);
