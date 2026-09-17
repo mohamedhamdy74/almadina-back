@@ -111,6 +111,7 @@ const createProduct = async (req, res) => {
       brand: brand.trim(),
       description: description.trim(),
       price: Number(price),
+      oldPrice: req.body.oldPrice ? Number(req.body.oldPrice) : undefined,
       category,
       thumbnail,
       images,
@@ -171,6 +172,10 @@ const updateProduct = async (req, res) => {
     // Convert price to number if provided
     if (updates.price) {
       updates.price = Number(updates.price);
+    }
+    if (updates.oldPrice !== undefined) {
+      existingProduct.oldPrice = updates.oldPrice && !isNaN(updates.oldPrice) && Number(updates.oldPrice) > 0 ? Number(updates.oldPrice) : null;
+      existingProduct.markModified('oldPrice');
     }
 
     // Handle boolean fields
