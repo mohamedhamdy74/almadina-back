@@ -56,6 +56,21 @@ const productSchema = new mongoose.Schema({
     specialFeatures: [String],
     graphicsDescription: String,
   },
+  // حالة التوفر
+  isAvailable: {
+    type: Boolean,
+    default: true,
+  },
+  // عرض اليوم
+  isDailyOffer: {
+    type: Boolean,
+    default: false,
+  },
+  // عرض الأسبوع
+  isWeeklyOffer: {
+    type: Boolean,
+    default: false,
+  },
   // Vector embedding for RAG-based search
   embedding_vector: {
     type: [Number],

@@ -38,12 +38,14 @@ const upload = multer({
 // Get all products with filtering
 const getProducts = async (req, res) => {
   try {
-    const { category, brand, type } = req.query;
+    const { category, brand, type, isDailyOffer, isWeeklyOffer } = req.query;
     let filter = {};
 
     if (category) filter.category = category;
     if (brand) filter.brand = brand;
     if (type) filter.brand = type; // For accessories, type is stored in brand field
+    if (isDailyOffer === 'true') filter.isDailyOffer = true;
+    if (isWeeklyOffer === 'true') filter.isWeeklyOffer = true;
 
     const products = await Product.find(filter).sort({ createdAt: -1 });
     res.json(products);
@@ -113,6 +115,9 @@ const createProduct = async (req, res) => {
       thumbnail,
       images,
       specifications,
+      isAvailable: req.body.isAvailable !== undefined ? req.body.isAvailable === 'true' || req.body.isAvailable === true : true,
+      isDailyOffer: req.body.isDailyOffer === 'true' || req.body.isDailyOffer === true,
+      isWeeklyOffer: req.body.isWeeklyOffer === 'true' || req.body.isWeeklyOffer === true,
     });
 
     console.log('Product object created:', product);
@@ -166,6 +171,17 @@ const updateProduct = async (req, res) => {
     // Convert price to number if provided
     if (updates.price) {
       updates.price = Number(updates.price);
+    }
+
+    // Handle boolean fields
+    if (updates.isAvailable !== undefined) {
+      updates.isAvailable = updates.isAvailable === 'true' || updates.isAvailable === true;
+    }
+    if (updates.isDailyOffer !== undefined) {
+      updates.isDailyOffer = updates.isDailyOffer === 'true' || updates.isDailyOffer === true;
+    }
+    if (updates.isWeeklyOffer !== undefined) {
+      updates.isWeeklyOffer = updates.isWeeklyOffer === 'true' || updates.isWeeklyOffer === true;
     }
 
     // Validate category if provided
