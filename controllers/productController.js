@@ -175,13 +175,16 @@ const updateProduct = async (req, res) => {
 
     // Handle boolean fields
     if (updates.isAvailable !== undefined) {
-      updates.isAvailable = updates.isAvailable === 'true' || updates.isAvailable === true;
+      existingProduct.isAvailable = updates.isAvailable === 'true' || updates.isAvailable === true;
+      existingProduct.markModified('isAvailable');
     }
     if (updates.isDailyOffer !== undefined) {
-      updates.isDailyOffer = updates.isDailyOffer === 'true' || updates.isDailyOffer === true;
+      existingProduct.isDailyOffer = updates.isDailyOffer === 'true' || updates.isDailyOffer === true;
+      existingProduct.markModified('isDailyOffer');
     }
     if (updates.isWeeklyOffer !== undefined) {
-      updates.isWeeklyOffer = updates.isWeeklyOffer === 'true' || updates.isWeeklyOffer === true;
+      existingProduct.isWeeklyOffer = updates.isWeeklyOffer === 'true' || updates.isWeeklyOffer === true;
+      existingProduct.markModified('isWeeklyOffer');
     }
 
     // Validate category if provided
